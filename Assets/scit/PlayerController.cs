@@ -152,11 +152,14 @@ public class PlayerController : MonoBehaviour
             rb.MovePosition(rb.position + movement * moveSpeed * Time.deltaTime);   //물리 기반 이동
         }
 
-       /* //이동 방향으로 캐릭터 회전
+        //이동 방향으로 캐릭터 회전
         if(movement.magnitude > 0.1f)
         {
             Quaternion toRotation = Quaternion.LookRotation(movement, Vector3.up);
-        }*/
+            transform.rotation = Quaternion.Slerp(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);
+        }
+        rb.MovePosition(rb.position + movement * moveSpeed * Time.deltaTime);
+        
     }
 
     //플레이어가 땅에 닿아 있는지 감지
