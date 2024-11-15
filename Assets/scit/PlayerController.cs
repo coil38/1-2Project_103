@@ -8,12 +8,24 @@ public class PlayerController : MonoBehaviour
     [Header("Player Movement")]
     public float moveSpeed = 5.0f;              //이동 속도
     public float jumpForce = 5.0f;              //점프 힘
-    public float rotationSpeed = 10f;           //회전 속도
+    public float rotationSpeed = 10f;           //회전 속도 
 
     //카메라 설정 변수
     [Header("Camera Settings")]
     public Camera firstPersonCamera;            //1인칭 카메라
     public Camera thirdPersonCamera;            //3인칭 카메라 
+
+    public float cameraDistance = 5.0f;         //카메라 거리 
+    public float minDistance = 1.0f;
+    public float maxDistance = 10.0f;
+
+    private float CurrentX = 0.0f;              //수평 회전 각도
+    private float CurrentY = 45.0f;             //수직 회전 각도    
+
+    private const float Y_ANGLE_MIN = 0.0f;
+    private const float Y_ANGLE_MAX = 50.0f;
+    public float mouseSenesitivity = 200f;        //마우스 감도
+
 
     public float radius = 5.0f;                 //3인칭 카메라와 플레이어 간의 거리
     public float minRadius = 1.0f;              //카메라 최소 거리
@@ -27,12 +39,20 @@ public class PlayerController : MonoBehaviour
     private float targetVerticalRoataion = 0;   //목표 수직 회전 각도
     private float verticalRotationSpeed = 240f; //수직 회전 속도 
 
-    public float mouseSenesitivity = 2f;        //마우스 감도
+
 
     //내부 변수들
-    private bool isFirstPerson = true;          //1인칭 모드 인지 여부 
-    private bool isGrounded;                    //플레이어가 땅에 있지 여부
+    public bool isFirstPerson = true;          //1인칭 모드 인지 여부 
+    //private bool isGrounded;                    //플레이어가 땅에 있지 여부
     private Rigidbody rb;                       //플레이어의 Rigidbody
+
+    public float fallingThreshold = -0.1f;                      //떨어지는것으로 간주할 수직 속도 임계값
+
+    [Header("Ground Check Setting")]
+    public float groundCheckDistance = 0.3f;
+    public float slopedLimit = 45f;                         //등반 가능한 최대 경사 각도 
+    public const int groundCheckPoints = 5;                 //지면 체크 포인트 수
+
 
     // Start is called before the first frame update
     void Start()
@@ -47,10 +67,18 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        HandleMovement();
         HandleRotation();
-        HandleJump();
         HandleCameraToggle();
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            HandleJump();
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        HandleMovement();
     }
 
     //활성화할 카메라를 설정하는 함수 
@@ -61,44 +89,39 @@ public class PlayerController : MonoBehaviour
     }
 
     //카메라 및 캐릭터 회전 처리하는 함수
-    void HandleRotation()
+    public void HandleRotation()
     {
-        float mouseX = Input.GetAxis("Mouse X") * mouseSenesitivity;    //마우스 좌우 입력 
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSenesitivity;    //마우스 상하 입력 
-
-        //수평 회전 (theta 값)
-        theta += mouseX;        //마우스 입력값 추가
-        theta = Mathf.Repeat(theta, 360f);          //각도 값이 360을 넘지 않도록 조정
-
-        //수직 회전 처리
-        targetVerticalRoataion -= mouseY;
-        targetVerticalRoataion = Mathf.Clamp(targetVerticalRoataion, yMinLimit, yMaxLimit); //수직 회전 제한 
-        phi = Mathf.MoveTowards(phi, targetVerticalRoataion, verticalRotationSpeed * Time.deltaTime);
-
-    
+        float mouseX = Input.GetAxis("Mouse X") * mouseSenesitivity * Time.deltaTime;
+        float mouseY = Input.GetAxis("Mouse Y") * mouseSenesitivity * Time.deltaTime;
 
         if (isFirstPerson)
         {
-            transform.rotation = Quaternion.Euler(0.0f, theta, 0.0f);
-            firstPersonCamera.transform.localRotation = Quaternion.Euler(phi, 0.0f, 0.0f);//1인칭 카메라 수직 회전
+            //1인칭 카메라 로직은 유지
+            transform.rotation = Quaternion.Euler(0.0f, CurrentX, 0.0f);
+            firstPersonCamera.transform.localRotation = Quaternion.Euler(CurrentY, 0.0f, 0.0f);
         }
         else
         {
-            //3인칭 카메라 구면 좌표계에서 위치 및 회전 계산
-            float x = radius * Mathf.Sin(Mathf.Deg2Rad * phi) * Mathf.Cos(Mathf.Deg2Rad * theta);
-            float y = radius * Mathf.Cos(Mathf.Deg2Rad * phi);
-            float z = radius * Mathf.Sin(Mathf.Deg2Rad * phi) * Mathf.Sin(Mathf.Deg2Rad * theta);
+            //3인칭 카메라 로직 수정 
+            CurrentX += mouseX;
+            CurrentY -= mouseY;             //마우스 y축 반전
 
-            thirdPersonCamera.transform.position = transform.position + new Vector3(x, y, z);
-            thirdPersonCamera.transform.LookAt(transform);  //카메라가 항상 플레이어를 바라보도록 설정
+            //수직 회전 제한
+            CurrentY = Mathf.Clamp(CurrentY, Y_ANGLE_MIN, Y_ANGLE_MAX);
 
-            //마우스 스크롤을 사용하여 카메라 줌 조정
-            radius = Mathf.Clamp(radius - Input.GetAxis("Mouse ScrollWheel") * 5, minRadius, maxRadius);
+            //카메라 위치 및 회전 계산 
+            Vector3 dir = new Vector3(0, 0, -cameraDistance);
+            Quaternion rotation = Quaternion.Euler(CurrentY, CurrentX, 0.0f);
+            thirdPersonCamera.transform.position = transform.position + rotation * dir;
+            thirdPersonCamera.transform.LookAt(transform.position);
+
+            //줌처리
+            cameraDistance = Mathf.Clamp(cameraDistance - Input.GetAxis("Mouse ScrollWheel") * 5, minDistance, maxDistance);
         }
     }
 
     //1인칭과 3인칭 카메라를 전환하는 함수
-    void HandleCameraToggle()
+    public void HandleCameraToggle()
     {
         if (Input.GetKeyDown(KeyCode.C))
         {
@@ -118,19 +141,19 @@ public class PlayerController : MonoBehaviour
     void HandleJump()
     {
         //점프 버튼을 누르고 땅에 있을 때
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
+        if (isGrounded())
         {
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);     //위쪽으로 힘을 가해 점프
-            isGrounded = false;                                         //공중에 있는 상태로 전환
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);     //위쪽으로 힘을 가해 점프           
         }
     }
 
     //플레이어의 이동을 처리하는 함수 
-    void HandleMovement()
+    public void HandleMovement()
     {
         float moveHorizontal = Input.GetAxis("Horizontal");                 //좌우 입력 (-1 , 1)
         float moveVertical = Input.GetAxis("Vertical");                       //앞뒤 입력 (1 , -1)
 
+        Vector3 movement;
         if (!isFirstPerson)  //3인칭 모드 일 때, 카메라 방향으로 이동 처리 
         {
             Vector3 cameraForward = thirdPersonCamera.transform.forward;    //카메라 앞 방향
@@ -142,29 +165,37 @@ public class PlayerController : MonoBehaviour
             cameraRight.Normalize();
 
             //이동 벡터 계산
-            Vector3 movement = cameraForward * moveVertical + cameraRight * moveHorizontal;
-            rb.MovePosition(rb.position + movement * moveSpeed * Time.deltaTime);   //물리 기반 이동
+            movement = cameraForward * moveVertical + cameraRight * moveHorizontal;
         }
         else
         {
             //캐릭터 기준으로 이동 (1인칭)
-            Vector3 movement = transform.right * moveHorizontal + transform.forward * moveVertical;
-            rb.MovePosition(rb.position + movement * moveSpeed * Time.deltaTime);   //물리 기반 이동
+            movement = transform.right * moveHorizontal + transform.forward * moveVertical;
         }
 
         //이동 방향으로 캐릭터 회전
-        if(movement.magnitude > 0.1f)
+        if (movement.magnitude > 0.1f)
         {
             Quaternion toRotation = Quaternion.LookRotation(movement, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);
         }
+
         rb.MovePosition(rb.position + movement * moveSpeed * Time.deltaTime);
-        
     }
 
-    //플레이어가 땅에 닿아 있는지 감지
-    private void OnCollisionStay(Collision collision)
+    public bool isFalling()     //떨어지는 유무 확인
     {
-        isGrounded = true;          //충돌 중이면 플레이어는 땅에 있다.
+        return rb.velocity.y < fallingThreshold && !isGrounded();
     }
+
+    public bool isGrounded()    //땅 체크 확인
+    {
+        return Physics.Raycast(transform.position, Vector3.down, 2.0f);
+    }
+
+    public float GetVerticalVelocity()  //플레이어의 Y축 속도 확인 
+    {
+        return rb.velocity.y;
+    }
+
 }
