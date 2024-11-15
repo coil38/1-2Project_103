@@ -97,9 +97,11 @@ public class PlayerController : MonoBehaviour
         if (isFirstPerson)
         {
             //1인칭 카메라 로직은 유지
+
             transform.rotation = Quaternion.Euler(0.0f, CurrentX, 0.0f);
             firstPersonCamera.transform.localRotation = Quaternion.Euler(CurrentY, 0.0f, 0.0f);
         }
+
         else
         {
             //3인칭 카메라 로직 수정 
