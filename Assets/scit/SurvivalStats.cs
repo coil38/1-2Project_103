@@ -33,7 +33,7 @@ public class SurvivalStats : MonoBehaviour
     }
 
 
-    private void PlayerDeath()
+    private void PlayerDeath()                          //플레이어 사망 함수
     {
         isGameOver = true;
         Debug.Log("플레이어 사망!");
@@ -55,7 +55,7 @@ public class SurvivalStats : MonoBehaviour
         return isGameOver;
     }
 
-    public void ResetStats()
+    public void ResetStats()                    //리셋 함수 작성 (변수들 초기화 용도)
     {
         isGameOver = false;
         isPaused = false;
@@ -77,7 +77,38 @@ public class SurvivalStats : MonoBehaviour
     }
 
     //우주복 수리 (크리스탈로 제작한 수리 키트 사용)
-    
+    public void RepairSuit(float amount)
+    {
+        if (!isGameOver || isPaused) return;
+
+        currentSuitDurability = Mathf.Min(maxSuitDurability, currentSuitDurability + amount);
+
+        if (FloatingTextManager.Instance != null)
+        {
+            FloatingTextManager.Instance.Show($"우주복 수리 + {amount}", transform.position + Vector3.up);
+        }
+        /*
+        //아이템 수집시 우주복 데미지
+        public void DamageOnHarvesting()
+        {
+            if(isGameOver || isPaused) return;
+
+            currentSuitDurability = Mathf.Max(0, currentSuitDurability - havestingDamage);  //0값 이하로 안 내려가게 막기 위해서
+            CheckDeath();
+        }
+
+        //아이템 제작시 우주복 데미지
+        public void DamageOnCrafting();
+        {
+            if (isGameOver || isPaused) return;
+
+            currentSuitDurability = Mathf.Max(0, currentSuitDurability - havestingDamage);  //0값 이하로 안 내려가게 막기 위해서
+            CheckDeath();
+        }*/
+
+
+
+}
 
 
 }
